@@ -360,4 +360,87 @@ class EnrichmentConfigsSpec extends Specification with ValidationMatchers {
       }
     }
   }
+
+  "Parsing an iab_spiders_and_robots_enrichment JSON" should {
+    "successfully construct an IabEnrichment case class if JSON is valid" in {
+
+      val iabJson = parse("""{
+        "enabled": true,
+        "parameters": {
+          "ipFile": {
+            "database": "ip_exclude_current_cidr.txt",
+            "uri": "https://example.com"
+          },
+          "excludeUseragentFile": {
+            "database": "exclude_current.txt",
+            "uri": "https://example.com"
+          },
+          "includeUseragentFile": {
+             "database": "include_current.txt",
+             "uri": "https://example.com"
+          },
+          "httpUsername": "USERNAME_PLACEHOLDER",
+          "httpPassword": "PASSWORD_PLACEHOLDER"
+        }
+      }""")
+
+      val schemaKey = SchemaKey("com.snowplowanalytics.snowplow.enrichments",
+                                "iab_spiders_and_robots_enrichment",
+                                "jsonschema",
+                                "1-0-0")
+
+      val expected = IabEnrichment(
+        Some(
+          IabDatabase("ipFile",
+                      new URI("https://example.com/ip_exclude_current_cidr.txt"),
+                      "ip_exclude_current_cidr.txt")),
+        Some(
+          IabDatabase("excludeUseragentFile",
+                      new URI("https://example.com/exclude_current.txt"),
+                      "exclude_current.txt")),
+        Some(
+          IabDatabase("includeUseragentFile",
+                      new URI("https://example.com/include_current.txt"),
+                      "include_current.txt")),
+        Some("USERNAME_PLACEHOLDER"),
+        Some("PASSWORD_PLACEHOLDER"),
+        true
+      )
+
+      val result = IabEnrichment.parse(iabJson, schemaKey, true)
+      result must beSuccessful(expected)
+
+    }
+
+    "fail if some database files are missing" in {
+
+      val iabJson = parse("""{
+        "enabled": true,
+        "parameters": {
+          "ipFile": {
+            "database": "ip_exclude_current_cidr.txt",
+            "uri": "https://example.com"
+          },
+          "excludeUseragentFile": {
+            "database": "DOES_NOT_EXIST",
+            "uri": "https://example.com"
+          },
+          "includeUseragentFile": {
+             "database": "include_current.txt",
+             "uri": "https://example.com"
+          },
+          "httpUsername": "USERNAME_PLACEHOLDER",
+          "httpPassword": "PASSWORD_PLACEHOLDER"
+        }
+      }""")
+
+      val schemaKey = SchemaKey("com.snowplowanalytics.snowplow.enrichments",
+                                "iab_spiders_and_robots_enrichment",
+                                "jsonschema",
+                                "1-0-0")
+
+      IabEnrichment.parse(iabJson, schemaKey, true) must throwA[NullPointerException]
+
+    }
+  }
 }
